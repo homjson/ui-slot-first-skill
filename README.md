@@ -15,11 +15,7 @@
 ### 方式 A:skills CLI(推荐,自动适配多 Agent)
 
 ```bash
-# 发布到 GitHub 后(把 <your-name> 换成你的 GitHub 用户名):
-npx skills add <your-name>/ui-slot-first-skill
-
-# 本地开发期直接用路径:
-npx skills add ./ui-slot-first-skill
+npx skills add homjson/ui-slot-first-skill
 ```
 
 CLI 会自动检测本机已安装的 Agent(Claude Code / Codex / Cursor / GitHub Copilot / Windsurf / Cline / Zed / VS Code 等)并把 skill 放到对应目录。
@@ -75,7 +71,7 @@ description: Enforce slot-first UI implementation when generating component code
 1. **先查组件 slot 文档** → 确认可用 slot
 2. **slot 能满足就用**,样式差异用 `:deep()` 穿透而非替换结构
 3. **部分满足** → slot + 局部自定义组合
-4. **完全不能满足**(结构层级差异巨大 / 组件不支持的行为 / 样式钩子无法穿透)→ 方自行实现,并在注释中标注理由
+4. **完全不能满足**(结构层级差异巨大 / 组件不支持的行为 / 样式钩子无法穿透)→ 方可自行实现,并在注释中标注理由
 
 完整规则与 `el-drawer #title` 正反例见 `skills/ui-slot-first/SKILL.md`。
 
