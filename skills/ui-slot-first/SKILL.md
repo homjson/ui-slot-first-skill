@@ -1,89 +1,112 @@
 ---
 name: ui-slot-first
-description: Enforce slot-first UI implementation when generating component code from design files via MCP (Figma, MasterGo, Lanhu, Jijing) or design-to-code workflows. Use the component library's provided slots, props, and APIs (Element Plus #title/#footer, Ant Design Vue, Naive UI, Vuetify, PrimeVue slots) instead of rebuilding component internals with custom HTML. Trigger when writing Vue/React UI code from design specs, Figma MCP output, or whenever the agent tends to reconstruct component sub-structures (headers, footers, toolbars) that the library already exposes as slots.
+description: Enforce slot-first implementation for UI code generated from design sources such as Figma MCP, MasterGo MCP, Lanhu, Jijing, screenshots, or design-to-code specs. Use when implementing Vue, React, or other frontend UI with component libraries such as Element Plus, Ant Design Vue, Naive UI, Vuetify, PrimeVue, Ant Design, MUI, Chakra UI, or similar. Prefer the library component's slots, props, render hooks, theme tokens, and documented APIs for headers, titles, footers, actions, prefixes, suffixes, empty states, cells, overlays, and toolbars before rebuilding those regions with custom HTML.
 ---
 
-# UI 实现规则:Slot 优先原则
+# Slot-First UI Implementation
 
-> 当通过 MCP(Figma / MasterGo / 蓝湖 / 即时设计)读取 UI 设计图生成代码时,强制执行本规则。
+When generating UI code from a design file, do not rebuild a component's internal regions with raw HTML until the component library's extension points have been checked and ruled out.
 
-## 核心原则
+The default implementation order is:
 
-使用组件库(Element Plus / Ant Design Vue / Naive UI / Vuetify / PrimeVue 等)实现 UI 时,**必须优先采用组件库提供的 slot(插槽)、prop、API 满足设计需求**,而非用原生 HTML 元素重新实现组件的内部结构。
+1. Component prop/API
+2. Named/default slot, render prop, or render hook
+3. Theme token, CSS variable, class hook, or scoped style override
+4. Small wrapper inside an official slot
+5. Raw HTML replacement only after the above cannot satisfy the design
 
-一句话:**先吃组件的 slot,吃不下再自己写 HTML。**
+## Required Workflow
 
-## 决策流程(严格按顺序)
+Before implementing any component that comes from a UI library:
 
-| 步骤 | 动作 | 产出 |
-|------|------|------|
-| 1. 识别 | 对照设计稿,识别组件语义区域(标题→title slot、工具栏→header/toolbar slot、底部操作→footer slot、空状态→empty slot 等) | 语义映射表 |
-| 2. 查文档 | 确认该组件提供了哪些具名插槽、prop、样式类名钩子 | 可用 slot 清单 |
-| 3. 匹配 | 判断 slot 能否满足?能→用 slot;部分能→slot+局部自定义;完全不能→自行实现 | 实现方案 |
-| 4. 样式穿透 | 样式差异(字号/颜色/间距/图标)通过 `:deep()` / slot 内包裹元素类名注入,**而非替换结构** | scoped style |
+1. Identify the target library component.
+   Example: Figma drawer/modal panel maps to `el-drawer`, `a-drawer`, `n-drawer`, `Dialog`, or similar.
 
-**关键认知**:设计稿的样式差异 ≠ 结构差异。样式差异一律用 CSS 穿透解决,不要因为"标题字号不同"就放弃 `#title` slot 另起炉灶。
+2. Map design regions to component extension points.
+   Common mappings:
+   - title/header -> `title`, `header`, `#title`, `#header`
+   - footer/actions -> `footer`, `#footer`, `actions`
+   - table cell/header/empty -> column slots, `#default`, `#header`, `#empty`, render callbacks
+   - select/cascader option content -> option/default slots, label render hooks
+   - prefix/suffix/icon -> prefix, suffix, icon, closeIcon, extra, addon slots or props
 
-## 判断"slot 确实无法满足"的合理场景(方可自行实现)
+3. Check the component documentation, installed type definitions, examples, or source before choosing raw HTML.
+   Do not guess slot names when they are uncertain. If documentation is not available locally, state the uncertainty and choose the closest documented API already known in the project.
 
-- 设计稿结构与组件 slot 提供的结构层级差异巨大(如 Drawer header 需嵌入 Tab 切换)
-- 需要组件完全不支持的行为(交互/布局)
-- slot 提供的样式钩子无法覆盖关键视觉需求,且 `:deep()` 无法穿透
+4. Implement with the component API first.
+   A style difference in the design is not a structural reason to abandon the slot. Use the slot and adjust typography, spacing, color, icons, and alignment with scoped CSS, theme tokens, CSS variables, `:deep()`, or a wrapper inside the slot.
 
-> 自行实现时,必须在代码注释或提交说明中标注:"已确认无可用 slot,理由:XXX"。
+5. Use raw HTML only when the library cannot express the required structure or behavior.
+   Valid fallback reasons include:
+   - The component has no relevant slot/prop/render hook.
+   - The required layout changes the component hierarchy in a way the slot cannot represent.
+   - The required interaction is unsupported by the component API.
+   - Styling hooks and theme tokens cannot reach the required visual target.
 
-## 示例对比(el-drawer 的 title)
+6. When falling back to raw HTML, leave evidence.
+   Add a short code comment or final note:
+   `Slot-first fallback: checked <component> <slot/prop/API>; using custom HTML because <reason>.`
 
-### ❌ 错误:弃用 slot,自行实现 head
+## Hard Rule
+
+Never replace an existing library region only because the design has different visual styling.
+
+If the design shows a drawer title with custom font, color, spacing, or icon treatment, use the drawer title/header slot first. Customize the title inside the slot or through the component's documented style hooks.
+
+## Element Plus Drawer Example
+
+Avoid this pattern:
 
 ```vue
 <el-drawer v-model="visible" :show-close="false">
-  <div class="custom-header">
-    <span class="title">自定义标题</span>
-    <i class="icon-close" @click="visible = false" />
+  <div class="drawer-head">
+    <span class="drawer-title">Order details</span>
+    <button class="drawer-close" @click="visible = false">x</button>
   </div>
-  <div class="content">...</div>
+  <section>...</section>
 </el-drawer>
 ```
 
-**问题**:丢失 el-drawer 内置的 ESC 关闭、拖拽、ARIA、主题样式联动;与组件库主题脱节;后续组件升级需手动跟进。
+This recreates the drawer header and risks losing built-in behavior, accessibility, close affordances, theme integration, and future compatibility.
 
-### ✅ 正确:用 title slot + 样式穿透
+Prefer this pattern:
 
 ```vue
 <el-drawer v-model="visible">
   <template #title>
-    <span class="custom-title">自定义标题</span>
+    <div class="drawer-title">
+      <span>Order details</span>
+      <el-tag type="info">Draft</el-tag>
+    </div>
   </template>
-  <div class="content">...</div>
+
+  <section>...</section>
 </el-drawer>
 
 <style scoped>
-:deep(.el-drawer__title) {
+:deep(.el-drawer__header) {
+  margin-bottom: 0;
+  padding: 20px 24px 12px;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-size: 18px;
   font-weight: 600;
-}
-.custom-title {
-  color: var(--el-color-primary);
 }
 </style>
 ```
 
-**收益**:保留组件内置行为;样式可定制;升级无痛。
+If the design also customizes the close icon, check the component's close icon prop or close slot before hiding the built-in close button and creating a new one.
 
-## 各组件库常见 slot 速查
+## Output Checklist
 
-| 组件库 | Drawer | Dialog | Table | Form | Cascader/Select |
-|--------|--------|--------|-------|------|-----------------|
-| Element Plus | `#title` `#footer` `#default` | `#header` `#footer` `#title` | `#default` `#header` `#append` `#empty` | `#default` `label` prop | `#default` `#prefix` `#empty` |
-| Ant Design Vue | `title` `footer` | `title` `footer` `closeIcon` | `title` `footer` `summary` `expandedRowRender` | — | `default`(labelInValue) |
-| Naive UI | `header` `footer` | `header` `footer` `action` `icon` | (通过 render 函数) | — | `render-label` `render-tag` |
+For each UI-library component you implement from a design source, verify:
 
-> 具体以组件库官方文档为准。实现前**必须**查文档确认 slot 名。
-
-## 自检清单(生成代码后逐项确认)
-
-- [ ] 是否查阅了组件的 slot/prop 文档?
-- [ ] 每个"看起来是组件一部分"的区域(标题/底部/工具栏/触发器),是否优先用了对应 slot?
-- [ ] 样式差异是否用 `:deep()` 或 slot 内元素类名解决,而非替换结构?
-- [ ] 若自行实现了结构,是否在注释中说明了 slot 无法满足的理由?
+- Did I identify the intended library component?
+- Did I check for a slot, prop, render hook, theme token, or class hook for each title/header/footer/action area?
+- Did I preserve the library component's built-in behavior instead of recreating it?
+- Are visual differences handled with slot content or CSS rather than structural replacement?
+- If raw HTML was used, did I document why the official API could not satisfy the design?
