@@ -1,4 +1,4 @@
-# ui-slot-first
+# component-slot-first
 
 > Agent Skill: when generating UI code from Figma MCP, MasterGo MCP, Lanhu, screenshots, or other design sources, prefer component-library slots/props/APIs before rebuilding component internals with raw HTML.
 
@@ -39,7 +39,7 @@ ui-slot-first-skill/
 ├── README.md
 ├── LICENSE
 └── skills/
-    └── ui-slot-first/
+    └── component-slot-first/
         └── SKILL.md
 ```
 
